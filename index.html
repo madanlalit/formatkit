@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FormatKit — Format & Diff</title>
+  <meta name="description"
+    content="Lightweight multi-format formatter and diff tool for JSON, XML, CSS, SQL, YAML, Base64, and URL encoding." />
+  <style>
+    :root {
+      --bg: #fafafa;
+      --panel: #ffffff;
+      --input-bg: #f5f5f4;
+      --border: #e2e2e0;
+      --border-hi: #d4d4d2;
+      --text: #1c1c1a;
+      --text-muted: #8b8b89;
+      --accent: #1c1c1a;
+      --green: #2a7d3f;
+      --green-bg: #ecfdf3;
+      --red: #c4320a;
+      --red-bg: #fef2ee;
+      --radius: 8px;
+      --radius-sm: 5px;
+      --font-mono: "SF Mono", "Menlo", "Monaco", "Cascadia Code", "Courier New", monospace;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px/1.6 var(--font-mono);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 32px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .logo {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      margin-bottom: 2px;
+      color: var(--text);
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-bottom: 24px;
+      font-weight: 400;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+      width: min(680px, 100%);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px 0;
+      text-align: center;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-bottom: -1px;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--text);
+    }
+
+    .tab .badge {
+      display: none;
+    }
+
+    /* ── Container ── */
+    .container {
+      width: min(680px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 20px;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 2px;
+    }
+
+    /* ── Select ── */
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238b8b89'/%3E%3C/svg%3E") no-repeat right 8px center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px 26px 5px 8px;
+      font: inherit;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    select:focus {
+      border-color: var(--border-hi);
+      outline: none;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 12px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--input-bg);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary:hover {
+      opacity: 0.85;
+    }
+
+    .btn.ghost {
+      border-color: transparent;
+      background: transparent;
+      color: var(--text-muted);
+    }
+
+    .btn.ghost:hover {
+      color: var(--text);
+      background: var(--input-bg);
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    /* ── Textarea ── */
+    textarea {
+      width: 100%;
+      min-height: 340px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+      font: 13px/1.55 var(--font-mono);
+      color: var(--text);
+      background: var(--input-bg);
+      tab-size: 2;
+    }
+
+    textarea:focus {
+      border-color: var(--border-hi);
+    }
+
+    textarea::placeholder {
+      color: var(--text-muted);
+      opacity: 0.55;
+    }
+
+    /* ── Status ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 22px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .status-bar .msg.error {
+      color: var(--red);
+    }
+
+    .status-bar .msg.success {
+      color: var(--green);
+    }
+
+    .status-bar .hint {
+      opacity: 0.5;
+    }
+
+    /* ── Diff ── */
+    .diff-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .diff-inputs .col label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+    }
+
+    .diff-inputs textarea {
+      min-height: 180px;
+    }
+
+    .diff-output {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .diff-output::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .diff-output::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .diff-line {
+      display: flex;
+      padding: 0 12px;
+      white-space: pre;
+      font-family: var(--font-mono);
+    }
+
+    .diff-line .ln {
+      min-width: 32px;
+      text-align: right;
+      color: var(--text-muted);
+      opacity: 0.45;
+      padding-right: 10px;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .diff-line .content {
+      flex: 1;
+    }
+
+    .diff-line.add {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .diff-line.del {
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .diff-line.add .ln {
+      color: var(--green);
+      opacity: 0.5;
+    }
+
+    .diff-line.del .ln {
+      color: var(--red);
+      opacity: 0.5;
+    }
+
+    .diff-empty {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+      opacity: 0.45;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 20px 10px;
+      }
+
+      .container {
+        padding: 14px;
+      }
+
+      textarea {
+        min-height: 240px;
+      }
+
+      .diff-inputs {
+        grid-template-columns: 1fr;
+      }
+
+      .btn {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1 class="logo">FormatKit</h1>
+  <p class="subtitle">Lightweight formatter & diff — zero dependencies</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" role="tab" aria-selected="true" data-tab="formatter">
+      ✦ Formatter
+    </button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="diff">
+      ⇌ Diff <span class="badge">NEW</span>
+    </button>
+  </div>
+
+  <main class="container">
+    <!-- ═══════ FORMATTER PANEL ═══════ -->
+    <section id="formatter" class="panel active">
+      <div class="toolbar">
+        <span class="toolbar-label">Format</span>
+        <select id="format-select">
+          <option value="json">JSON</option>
+          <option value="xml">XML / HTML</option>
+          <option value="css">CSS</option>
+          <option value="sql">SQL</option>
+          <option value="yaml">YAML</option>
+          <option value="base64">Base64</option>
+          <option value="url">URL Encode</option>
+        </select>
+        <span class="spacer"></span>
+        <button id="fmt-format" class="btn primary" type="button">Format</button>
+        <button id="fmt-minify" class="btn" type="button">Minify</button>
+        <button id="fmt-copy" class="btn" type="button">Copy</button>
+        <button id="fmt-clear" class="btn ghost" type="button">Clear</button>
+      </div>
+
+      <label class="sr-only" for="fmt-input">Input</label>
+      <textarea id="fmt-input" spellcheck="false"
+        placeholder='Paste JSON, XML, CSS, SQL, YAML, Base64, or URL-encoded text...'></textarea>
+
+      <div class="status-bar">
+        <span id="fmt-status" class="msg"></span>
+        <span class="hint">⌘/Ctrl + Enter to format</span>
+      </div>
+    </section>
+
+    <!-- ═══════ DIFF PANEL ═══════ -->
+    <section id="diff" class="panel">
+      <div class="toolbar">
+        <button id="diff-compare" class="btn primary" type="button">Compare</button>
+        <button id="diff-swap" class="btn" type="button">⇌ Swap</button>
+        <button id="diff-clear" class="btn ghost" type="button">Clear</button>
+        <span class="spacer"></span>
+        <span id="diff-stats" style="font-size:11px;color:var(--text-muted)"></span>
+      </div>
+      <div class="diff-inputs">
+        <div class="col">
+          <label for="diff-left">Original</label>
+          <textarea id="diff-left" spellcheck="false" placeholder="Paste original text…"></textarea>
+        </div>
+        <div class="col">
+          <label for="diff-right">Modified</label>
+          <textarea id="diff-right" spellcheck="false" placeholder="Paste modified text…"></textarea>
+        </div>
+      </div>
+      <div id="diff-output" class="diff-output">
+        <div class="diff-empty">Paste text in both fields &amp; click Compare</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      /* ── Tab switching ── */
+      const tabs = document.querySelectorAll('.tab');
+      const panels = document.querySelectorAll('.panel');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+          panels.forEach(p => p.classList.remove('active'));
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+      });
+
+      /* ═══════════════════════════════════
+         FORMATTER
+         ═══════════════════════════════════ */
+      const fmtInput = document.getElementById('fmt-input');
+      const fmtSelect = document.getElementById('format-select');
+      const fmtStatus = document.getElementById('fmt-status');
+
+      function setStatus(msg, type = '') {
+        fmtStatus.textContent = msg;
+        fmtStatus.className = 'msg' + (type ? ' ' + type : '');
+      }
+
+      /* ── JSON ── */
+      function formatJSON(src) {
+        const obj = JSON.parse(src);
+        return JSON.stringify(obj, null, 2);
+      }
+      function minifyJSON(src) {
+        return JSON.stringify(JSON.parse(src));
+      }
+
+      /* ── XML / HTML ── */
+      function formatXML(src) {
+        let formatted = '';
+        let indent = 0;
+        const pad = n => '  '.repeat(n);
+        // Normalize and split by tags
+        src = src.replace(/>\s*</g, '><').trim();
+        const tokens = src.match(/(<[^>]+>|[^<]+)/g) || [];
+        tokens.forEach(token => {
+          if (/^<\//.test(token)) {
+            indent = Math.max(0, indent - 1);
+            formatted += pad(indent) + token + '\n';
+          } else if (/^<[^/].*\/>$/.test(token)) {
+            formatted += pad(indent) + token + '\n';
+          } else if (/^<[^/]/.test(token)) {
+            formatted += pad(indent) + token + '\n';
+            if (!/\/>$/.test(token)) indent++;
+          } else {
+            const text = token.trim();
+            if (text) formatted += pad(indent) + text + '\n';
+          }
+        });
+        return formatted.trimEnd();
+      }
+      function minifyXML(src) {
+        return src.replace(/>\s+</g, '><').replace(/\s+/g, ' ').trim();
+      }
+
+      /* ── CSS ── */
+      function formatCSS(src) {
+        let result = '';
+        let indent = 0;
+        const pad = n => '  '.repeat(n);
+        // Normalize
+        src = src.replace(/\s+/g, ' ').trim();
+        for (let i = 0; i < src.length; i++) {
+          const ch = src[i];
+          if (ch === '{') {
+            result += ' {\n';
+            indent++;
+          } else if (ch === '}') {
+            indent = Math.max(0, indent - 1);
+            result += pad(indent) + '}\n\n';
+          } else if (ch === ';') {
+            result += ';\n' + pad(indent);
+          } else if (ch === ' ' && result.endsWith('\n' + pad(indent))) {
+            // Skip leading space after indent
+          } else {
+            if (result.endsWith('\n')) result += pad(indent);
+            result += ch;
+          }
+        }
+        return result.replace(/\n{3,}/g, '\n\n').trimEnd();
+      }
+      function minifyCSS(src) {
+        return src
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/\s+/g, ' ')
+          .replace(/\s*([{}:;,])\s*/g, '$1')
+          .replace(/;}/g, '}')
+          .trim();
+      }
+
+      /* ── SQL ── */
+      function formatSQL(src) {
+        const keywords = [
+          'SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'ORDER BY', 'GROUP BY',
+          'HAVING', 'LIMIT', 'OFFSET', 'INSERT INTO', 'VALUES', 'UPDATE',
+          'SET', 'DELETE FROM', 'CREATE TABLE', 'ALTER TABLE', 'DROP TABLE',
+          'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'OUTER JOIN',
+          'FULL JOIN', 'CROSS JOIN', 'ON', 'UNION', 'UNION ALL', 'AS',
+          'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'IN', 'NOT', 'IS', 'NULL',
+          'BETWEEN', 'LIKE', 'EXISTS', 'DISTINCT', 'INTO', 'WITH'
+        ];
+        let result = src.replace(/\s+/g, ' ').trim();
+        // Uppercase keywords
+        keywords.forEach(kw => {
+          const regex = new RegExp('\\b' + kw.replace(/ /g, '\\s+') + '\\b', 'gi');
+          result = result.replace(regex, kw);
+        });
+        // Newlines before major clauses
+        const majors = ['SELECT', 'FROM', 'WHERE', 'ORDER BY', 'GROUP BY', 'HAVING',
+          'LIMIT', 'OFFSET', 'INSERT INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE FROM',
+          'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'OUTER JOIN', 'FULL JOIN',
+          'CROSS JOIN', 'ON', 'UNION', 'UNION ALL', 'WITH'];
+        majors.forEach(kw => {
+          const regex = new RegExp('\\s+(' + kw.replace(/ /g, '\\s+') + ')\\b', 'gi');
+          result = result.replace(regex, '\n' + kw);
+        });
+        // Indent continuation
+        const lines = result.split('\n');
+        const indented = lines.map((line, i) => {
+          const trimmed = line.trim();
+          if (i === 0) return trimmed;
+          if (/^(AND|OR)\b/.test(trimmed)) return '  ' + trimmed;
+          if (/^(ON)\b/.test(trimmed)) return '  ' + trimmed;
+          return trimmed;
+        });
+        return indented.join('\n');
+      }
+      function minifySQL(src) {
+        return src.replace(/\s+/g, ' ').trim();
+      }
+
+      /* ── YAML ── */
+      function formatYAML(src) {
+        // Re-indent YAML to consistent 2-space indentation
+        const lines = src.split('\n');
+        const result = [];
+        let prevIndent = 0;
+        let indentUnit = 0;
+        // Detect indent unit
+        for (const line of lines) {
+          if (line.trim() === '') continue;
+          const spaces = line.match(/^(\s*)/)[1].length;
+          if (spaces > 0 && indentUnit === 0) { indentUnit = spaces; break; }
+        }
+        if (indentUnit === 0) indentUnit = 2;
+        for (const line of lines) {
+          if (line.trim() === '') { result.push(''); continue; }
+          const spaces = line.match(/^(\s*)/)[1].length;
+          const level = Math.round(spaces / indentUnit);
+          result.push('  '.repeat(level) + line.trim());
+        }
+        return result.join('\n').trimEnd();
+      }
+
+      /* ── Base64 ── */
+      function formatBase64(src) {
+        // Decode
+        try { return decodeURIComponent(escape(atob(src.trim()))); }
+        catch { return atob(src.trim()); }
+      }
+      function minifyBase64(src) {
+        // Encode
+        try { return btoa(unescape(encodeURIComponent(src))); }
+        catch { return btoa(src); }
+      }
+
+      /* ── URL Encode ── */
+      function formatURL(src) {
+        return decodeURIComponent(src.trim());
+      }
+      function minifyURL(src) {
+        return encodeURIComponent(src);
+      }
+
+      /* ── Dispatch ── */
+      const formatters = {
+        json: { format: formatJSON, minify: minifyJSON },
+        xml: { format: formatXML, minify: minifyXML },
+        css: { format: formatCSS, minify: minifyCSS },
+        sql: { format: formatSQL, minify: minifySQL },
+        yaml: { format: formatYAML, minify: null },
+        base64: { format: formatBase64, minify: minifyBase64 },
+        url: { format: formatURL, minify: minifyURL },
+      };
+
+      // Update button labels for encode/decode formats
+      fmtSelect.addEventListener('change', () => {
+        const v = fmtSelect.value;
+        const fmtBtn = document.getElementById('fmt-format');
+        const minBtn = document.getElementById('fmt-minify');
+        if (v === 'base64') {
+          fmtBtn.textContent = 'Decode';
+          minBtn.textContent = 'Encode';
+          minBtn.style.display = '';
+        } else if (v === 'url') {
+          fmtBtn.textContent = 'Decode';
+          minBtn.textContent = 'Encode';
+          minBtn.style.display = '';
+        } else if (v === 'yaml') {
+          fmtBtn.textContent = 'Format';
+          minBtn.style.display = 'none';
+        } else {
+          fmtBtn.textContent = 'Format';
+          minBtn.textContent = 'Minify';
+          minBtn.style.display = '';
+        }
+      });
+
+      function doFormat() {
+        const raw = fmtInput.value;
+        if (!raw.trim()) { setStatus('Paste something first.'); return; }
+        const fmt = fmtSelect.value;
+        try {
+          fmtInput.value = formatters[fmt].format(raw);
+          const label = fmt === 'base64' || fmt === 'url' ? 'Decoded' : 'Formatted';
+          setStatus(`${label} (${fmt.toUpperCase()}).`, 'success');
+        } catch (e) {
+          setStatus(`Error: ${e.message}`, 'error');
+        }
+      }
+
+      function doMinify() {
+        const raw = fmtInput.value;
+        if (!raw.trim()) { setStatus('Paste something first.'); return; }
+        const fmt = fmtSelect.value;
+        const mf = formatters[fmt].minify;
+        if (!mf) { setStatus('Minify not available for this format.'); return; }
+        try {
+          fmtInput.value = mf(raw);
+          const label = fmt === 'base64' || fmt === 'url' ? 'Encoded' : 'Minified';
+          setStatus(`${label} (${fmt.toUpperCase()}).`, 'success');
+        } catch (e) {
+          setStatus(`Error: ${e.message}`, 'error');
+        }
+      }
+
+      async function doCopy() {
+        if (!fmtInput.value.trim()) { setStatus('Nothing to copy.'); return; }
+        try {
+          await navigator.clipboard.writeText(fmtInput.value);
+          setStatus('Copied to clipboard.', 'success');
+        } catch {
+          fmtInput.select();
+          document.execCommand('copy');
+          setStatus('Copied.', 'success');
+        }
+      }
+
+      function doClear() {
+        fmtInput.value = '';
+        setStatus('Cleared.');
+        fmtInput.focus();
+      }
+
+      document.getElementById('fmt-format').addEventListener('click', doFormat);
+      document.getElementById('fmt-minify').addEventListener('click', doMinify);
+      document.getElementById('fmt-copy').addEventListener('click', doCopy);
+      document.getElementById('fmt-clear').addEventListener('click', doClear);
+
+      fmtInput.addEventListener('keydown', e => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doFormat(); }
+      });
+
+      /* ═══════════════════════════════════
+         DIFF
+         ═══════════════════════════════════ */
+      const diffLeft = document.getElementById('diff-left');
+      const diffRight = document.getElementById('diff-right');
+      const diffOutput = document.getElementById('diff-output');
+      const diffStats = document.getElementById('diff-stats');
+
+      /* Longest Common Subsequence (LCS) based diff */
+      function lcs(a, b) {
+        const m = a.length, n = b.length;
+        // Optimize: use 2-row DP
+        const prev = new Uint16Array(n + 1);
+        const curr = new Uint16Array(n + 1);
+        // But we need the full table for traceback — use compact approach for small inputs
+        if (m * n > 1e7) {
+          // Fallback: simple line-by-line comparison for very large inputs
+          return null;
+        }
+        const dp = [];
+        for (let i = 0; i <= m; i++) {
+          dp[i] = new Uint16Array(n + 1);
+        }
+        for (let i = 1; i <= m; i++) {
+          for (let j = 1; j <= n; j++) {
+            if (a[i - 1] === b[j - 1]) {
+              dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+              dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+          }
+        }
+        // Traceback
+        const result = [];
+        let i = m, j = n;
+        while (i > 0 && j > 0) {
+          if (a[i - 1] === b[j - 1]) {
+            result.unshift({ type: 'eq', aIdx: i - 1, bIdx: j - 1 });
+            i--; j--;
+          } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+            i--;
+          } else {
+            j--;
+          }
+        }
+        return result;
+      }
+
+      function computeDiff(leftText, rightText) {
+        const a = leftText.split('\n');
+        const b = rightText.split('\n');
+        const common = lcs(a, b);
+
+        const lines = [];
+        if (common === null) {
+          // Fallback for very large inputs — simple line compare
+          const max = Math.max(a.length, b.length);
+          for (let i = 0; i < max; i++) {
+            if (i < a.length && i < b.length && a[i] === b[i]) {
+              lines.push({ type: 'eq', text: a[i], ln: i + 1 });
+            } else {
+              if (i < a.length) lines.push({ type: 'del', text: a[i], ln: i + 1 });
+              if (i < b.length) lines.push({ type: 'add', text: b[i], ln: i + 1 });
+            }
+          }
+          return lines;
+        }
+
+        let ai = 0, bi = 0;
+        for (const c of common) {
+          while (ai < c.aIdx) { lines.push({ type: 'del', text: a[ai], ln: ai + 1 }); ai++; }
+          while (bi < c.bIdx) { lines.push({ type: 'add', text: b[bi], ln: bi + 1 }); bi++; }
+          lines.push({ type: 'eq', text: a[ai], lnA: ai + 1, lnB: bi + 1 });
+          ai++; bi++;
+        }
+        while (ai < a.length) { lines.push({ type: 'del', text: a[ai], ln: ai + 1 }); ai++; }
+        while (bi < b.length) { lines.push({ type: 'add', text: b[bi], ln: bi + 1 }); bi++; }
+        return lines;
+      }
+
+      function escapeHTML(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function renderDiff() {
+        const left = diffLeft.value;
+        const right = diffRight.value;
+        if (!left.trim() && !right.trim()) {
+          diffOutput.innerHTML = '<div class="diff-empty">Paste text in both fields &amp; click Compare</div>';
+          diffStats.textContent = '';
+          return;
+        }
+
+        const lines = computeDiff(left, right);
+        let adds = 0, dels = 0;
+        let html = '';
+        for (const l of lines) {
+          const prefix = l.type === 'add' ? '+' : l.type === 'del' ? '-' : ' ';
+          const ln = l.type === 'eq' ? l.lnA : l.ln;
+          if (l.type === 'add') adds++;
+          if (l.type === 'del') dels++;
+          html += `<div class="diff-line ${l.type === 'eq' ? '' : l.type}"><span class="ln">${ln || ''}</span><span class="content">${prefix} ${escapeHTML(l.text)}</span></div>`;
+        }
+        diffOutput.innerHTML = html;
+        diffStats.innerHTML = `<span style="color:var(--green)">+${adds}</span> <span style="color:var(--red)">−${dels}</span>`;
+      }
+
+      function swapDiff() {
+        const tmp = diffLeft.value;
+        diffLeft.value = diffRight.value;
+        diffRight.value = tmp;
+      }
+
+      function clearDiff() {
+        diffLeft.value = '';
+        diffRight.value = '';
+        diffOutput.innerHTML = '<div class="diff-empty">Paste text in both fields &amp; click Compare</div>';
+        diffStats.textContent = '';
+      }
+
+      document.getElementById('diff-compare').addEventListener('click', renderDiff);
+      document.getElementById('diff-swap').addEventListener('click', swapDiff);
+      document.getElementById('diff-clear').addEventListener('click', clearDiff);
+    })();
+  </script>
+</body>
+
+</html>
