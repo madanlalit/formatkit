@@ -343,6 +343,110 @@
       border: 0;
     }
 
+    /* ── History ── */
+    .history-list {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .history-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .history-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-entry:last-child {
+      border-bottom: none;
+    }
+
+    .history-entry:hover {
+      background: var(--input-bg);
+      margin: 0 -12px;
+      padding-left: 12px;
+      padding-right: 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    .history-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .history-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .history-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .history-action-label {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .history-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .history-preview {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .history-actions .btn {
+      padding: 3px 8px;
+      font-size: 11px;
+    }
+
+    .history-empty {
+      padding: 48px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      opacity: 0.45;
+      font-size: 12px;
+    }
+
     @media (max-width: 600px) {
       body {
         padding: 20px 10px;
@@ -364,6 +468,15 @@
         padding: 5px 8px;
         font-size: 11px;
       }
+
+      .history-entry {
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .history-actions {
+        align-self: flex-end;
+      }
     }
   </style>
 </head>
@@ -378,6 +491,9 @@
     </button>
     <button class="tab" role="tab" aria-selected="false" data-tab="diff">
       ⇌ Diff <span class="badge">NEW</span>
+    </button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="history">
+      ↻ History
     </button>
   </div>
 
@@ -433,6 +549,18 @@
       </div>
       <div id="diff-output" class="diff-output">
         <div class="diff-empty">Paste text in both fields &amp; click Compare</div>
+      </div>
+    </section>
+
+    <!-- ═══════ HISTORY PANEL ═══════ -->
+    <section id="history" class="panel">
+      <div class="toolbar">
+        <span class="toolbar-label">History</span>
+        <span class="spacer"></span>
+        <button id="history-clear" class="btn ghost" type="button">Clear All</button>
+      </div>
+      <div id="history-list">
+        <div class="history-empty">No history yet — format something first</div>
       </div>
     </section>
   </main>
@@ -700,13 +828,155 @@
         fmtInput.focus();
       }
 
-      document.getElementById('fmt-format').addEventListener('click', doFormat);
-      document.getElementById('fmt-minify').addEventListener('click', doMinify);
+      /* ── History helpers ── */
+      const HISTORY_KEY = 'formatkit-history';
+      const HISTORY_MAX = 50;
+
+      function loadHistory() {
+        try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+        catch { return []; }
+      }
+
+      function saveHistory(entries) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+      }
+
+      function addHistoryEntry(format, action, input, output) {
+        const entries = loadHistory();
+        entries.unshift({
+          id: Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+          timestamp: Date.now(),
+          format,
+          action,
+          inputPreview: input.slice(0, 120),
+          outputPreview: output.slice(0, 120),
+          input,
+          output
+        });
+        if (entries.length > HISTORY_MAX) entries.length = HISTORY_MAX;
+        saveHistory(entries);
+        renderHistory();
+      }
+
+      function relativeTime(ts) {
+        const diff = Math.floor((Date.now() - ts) / 1000);
+        if (diff < 5) return 'just now';
+        if (diff < 60) return diff + 's ago';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+        return new Date(ts).toLocaleDateString();
+      }
+
+      function escHTML(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function renderHistory() {
+        const list = document.getElementById('history-list');
+        const entries = loadHistory();
+        if (!entries.length) {
+          list.innerHTML = '<div class="history-empty">No history yet — format something first</div>';
+          return;
+        }
+        list.innerHTML = entries.map(e => `
+          <div class="history-entry" data-id="${e.id}">
+            <div class="history-meta">
+              <div class="history-top">
+                <span class="history-badge">${escHTML(e.format.toUpperCase())}</span>
+                <span class="history-action-label">${escHTML(e.action)}</span>
+                <span class="history-time">${relativeTime(e.timestamp)}</span>
+              </div>
+              <div class="history-preview">${escHTML(e.outputPreview)}${e.output.length > 120 ? '…' : ''}</div>
+            </div>
+            <div class="history-actions">
+              <button class="btn" type="button" data-restore="${e.id}">Restore</button>
+              <button class="btn ghost" type="button" data-delete="${e.id}">✕</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Delegate history clicks
+      document.getElementById('history-list').addEventListener('click', (e) => {
+        const restoreId = e.target.closest('[data-restore]')?.dataset.restore;
+        const deleteId = e.target.closest('[data-delete]')?.dataset.delete;
+        if (restoreId) {
+          const entries = loadHistory();
+          const entry = entries.find(h => h.id === restoreId);
+          if (entry) {
+            // Switch to formatter tab
+            tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+            panels.forEach(p => p.classList.remove('active'));
+            const fmtTab = document.querySelector('[data-tab="formatter"]');
+            fmtTab.classList.add('active');
+            fmtTab.setAttribute('aria-selected', 'true');
+            document.getElementById('formatter').classList.add('active');
+            // Set format + content
+            fmtSelect.value = entry.format;
+            fmtSelect.dispatchEvent(new Event('change'));
+            fmtInput.value = entry.output;
+            setStatus('Restored from history.', 'success');
+          }
+        }
+        if (deleteId) {
+          const entries = loadHistory().filter(h => h.id !== deleteId);
+          saveHistory(entries);
+          renderHistory();
+        }
+      });
+
+      document.getElementById('history-clear').addEventListener('click', () => {
+        if (!loadHistory().length) return;
+        if (confirm('Clear all history?')) {
+          saveHistory([]);
+          renderHistory();
+        }
+      });
+
+      // Render on load
+      renderHistory();
+
+      // Hook into format/minify to record history
+      function doFormatWithHistory() {
+        const raw = fmtInput.value;
+        if (!raw.trim()) { setStatus('Paste something first.'); return; }
+        const fmt = fmtSelect.value;
+        try {
+          const result = formatters[fmt].format(raw);
+          fmtInput.value = result;
+          const label = fmt === 'base64' || fmt === 'url' ? 'Decoded' : 'Formatted';
+          setStatus(`${label} (${fmt.toUpperCase()}).`, 'success');
+          addHistoryEntry(fmt, label, raw, result);
+        } catch (e) {
+          setStatus(`Error: ${e.message}`, 'error');
+        }
+      }
+
+      function doMinifyWithHistory() {
+        const raw = fmtInput.value;
+        if (!raw.trim()) { setStatus('Paste something first.'); return; }
+        const fmt = fmtSelect.value;
+        const mf = formatters[fmt].minify;
+        if (!mf) { setStatus('Minify not available for this format.'); return; }
+        try {
+          const result = mf(raw);
+          fmtInput.value = result;
+          const label = fmt === 'base64' || fmt === 'url' ? 'Encoded' : 'Minified';
+          setStatus(`${label} (${fmt.toUpperCase()}).`, 'success');
+          addHistoryEntry(fmt, label, raw, result);
+        } catch (e) {
+          setStatus(`Error: ${e.message}`, 'error');
+        }
+      }
+
+      document.getElementById('fmt-format').addEventListener('click', doFormatWithHistory);
+      document.getElementById('fmt-minify').addEventListener('click', doMinifyWithHistory);
       document.getElementById('fmt-copy').addEventListener('click', doCopy);
       document.getElementById('fmt-clear').addEventListener('click', doClear);
 
       fmtInput.addEventListener('keydown', e => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doFormat(); }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); doFormatWithHistory(); }
       });
 
       /* ═══════════════════════════════════
