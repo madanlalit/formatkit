@@ -306,6 +306,15 @@
     .status-bar .hint {
       opacity: 0.5;
     }
+    .status-bar .msg {
+      transition: opacity 0.4s;
+    }
+
+    .status-bar .msg.fading {
+      opacity: 0;
+    }
+
+
 
     /* ── Diff ── */
     .diff-inputs {
@@ -733,9 +742,24 @@
       // Reset lastDetected when user manually changes the select
       fmtSelect.addEventListener('change', () => { lastDetected = fmtSelect.value; });
 
+      let statusTimer = null;
       function setStatus(msg, type = '') {
         fmtStatus.textContent = msg;
         fmtStatus.className = 'msg' + (type ? ' ' + type : '');
+        fmtStatus.classList.remove('fading');
+        clearTimeout(statusTimer);
+        // Auto-clear non-error messages after 3 s
+        if (type !== 'error' && msg) {
+          statusTimer = setTimeout(() => {
+            fmtStatus.classList.add('fading');
+            setTimeout(() => {
+              if (fmtStatus.classList.contains('fading')) {
+                fmtStatus.textContent = '';
+                fmtStatus.className = 'msg';
+              }
+            }, 450);
+          }, 3000);
+        }
       }
 
       /* ── JSON ── */
