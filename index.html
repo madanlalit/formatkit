@@ -111,6 +111,19 @@
       border-color: var(--border-hi);
     }
 
+    /* ── Auto-detect badge ── */
+    .detect-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+    }
+
+    .detect-hint.visible {
+      opacity: 1;
+    }
+
     /* ── Tabs ── */
     .tabs {
       display: flex;
@@ -561,6 +574,7 @@
           <option value="base64">Base64</option>
           <option value="url">URL Encode</option>
         </select>
+        <span id="detect-hint" class="detect-hint"></span>
         <span class="spacer"></span>
         <button id="fmt-format" class="btn primary" type="button">Format</button>
         <button id="fmt-minify" class="btn" type="button">Minify</button>
@@ -656,6 +670,55 @@
       const fmtInput = document.getElementById('fmt-input');
       const fmtSelect = document.getElementById('format-select');
       const fmtStatus = document.getElementById('fmt-status');
+
+      const detectHint = document.getElementById('detect-hint');
+
+      /* ── Auto-detect format ── */
+      let detectTimer = null;
+      function detectFormat(text) {
+        const t = text.trimStart();
+        if (!t) return null;
+        if (t[0] === '{' || t[0] === '[') return 'json';
+        if (t[0] === '<') return 'xml';
+        if (/^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|WITH)\b/i.test(t)) return 'sql';
+        if (/^[A-Za-z0-9+/\r\n]+=*$/.test(t.trim()) && t.length > 8 && !/[\s:{}]/.test(t.replace(/\s/g, ''))) return 'base64';
+        if (/%[0-9A-Fa-f]{2}/.test(t)) return 'url';
+        if (/^[a-zA-Z_-]+\s*[:{]/.test(t) && (t.includes(':') || t.includes('\n'))) return 'yaml';
+        if (/[a-z-]+\s*:\s*[^{]/.test(t) && t.includes('{')) return 'css';
+        return null;
+      }
+
+      let lastDetected = null;
+      let detectHintTimer = null;
+      function tryAutoDetect() {
+        const detected = detectFormat(fmtInput.value);
+        if (detected && detected !== fmtSelect.value) {
+          if (detected !== lastDetected) {
+            lastDetected = detected;
+            fmtSelect.value = detected;
+            fmtSelect.dispatchEvent(new Event('change'));
+            detectHint.textContent = `↳ Auto-detected ${detected.toUpperCase()}`;
+            detectHint.classList.add('visible');
+            clearTimeout(detectHintTimer);
+            detectHintTimer = setTimeout(() => detectHint.classList.remove('visible'), 2500);
+          }
+        } else if (!detected) {
+          lastDetected = null;
+        }
+      }
+
+      fmtInput.addEventListener('paste', () => {
+        clearTimeout(detectTimer);
+        detectTimer = setTimeout(tryAutoDetect, 50);
+      });
+
+      fmtInput.addEventListener('input', () => {
+        clearTimeout(detectTimer);
+        detectTimer = setTimeout(tryAutoDetect, 300);
+      });
+
+      // Reset lastDetected when user manually changes the select
+      fmtSelect.addEventListener('change', () => { lastDetected = fmtSelect.value; });
 
       function setStatus(msg, type = '') {
         fmtStatus.textContent = msg;
