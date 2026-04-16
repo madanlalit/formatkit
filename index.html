@@ -24,6 +24,23 @@
       --radius: 8px;
       --radius-sm: 5px;
       --font-mono: "SF Mono", "Menlo", "Monaco", "Cascadia Code", "Courier New", monospace;
+      color-scheme: light;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0e0e0d;
+      --panel: #1a1a18;
+      --input-bg: #232320;
+      --border: #2e2e2b;
+      --border-hi: #3d3d39;
+      --text: #e8e8e4;
+      --text-muted: #6b6b68;
+      --accent: #e8e8e4;
+      --green: #4ade80;
+      --green-bg: #052e16;
+      --red: #f87171;
+      --red-bg: #2d0f0f;
+      color-scheme: dark;
     }
 
     *,
@@ -57,8 +74,41 @@
     .subtitle {
       color: var(--text-muted);
       font-size: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 16px;
       font-weight: 400;
+    }
+
+    /* ── Header row ── */
+    .header-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 2px;
+    }
+
+    /* ── Dark mode toggle ── */
+    .theme-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+
+    .theme-btn:hover {
+      background: var(--input-bg);
+      color: var(--text);
+      border-color: var(--border-hi);
     }
 
     /* ── Tabs ── */
@@ -567,6 +617,26 @@
 
   <script>
     (() => {
+      /* ── Dark mode ── */
+      const themeBtn = document.getElementById('theme-toggle');
+      const savedTheme = localStorage.getItem('formatkit-theme');
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        themeBtn.textContent = '☀️';
+      }
+      themeBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+          document.documentElement.removeAttribute('data-theme');
+          themeBtn.textContent = '🌙';
+          localStorage.setItem('formatkit-theme', 'light');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          themeBtn.textContent = '☀️';
+          localStorage.setItem('formatkit-theme', 'dark');
+        }
+      });
+
       /* ── Tab switching ── */
       const tabs = document.querySelectorAll('.tab');
       const panels = document.querySelectorAll('.panel');
