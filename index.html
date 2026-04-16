@@ -588,7 +588,7 @@
 
       <div class="status-bar">
         <span id="fmt-status" class="msg"></span>
-        <span class="hint">⌘/Ctrl + Enter to format</span>
+        <span class="hint">⌘/Ctrl + Enter to format &nbsp;·&nbsp; Tab inserts spaces</span>
       </div>
     </section>
 
@@ -661,6 +661,19 @@
           tab.classList.add('active');
           tab.setAttribute('aria-selected', 'true');
           document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+      });
+
+      /* ── Tab key → spaces in all textareas ── */
+      document.querySelectorAll('textarea').forEach(ta => {
+        ta.addEventListener('keydown', e => {
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            ta.value = ta.value.slice(0, start) + '  ' + ta.value.slice(end);
+            ta.selectionStart = ta.selectionEnd = start + 2;
+          }
         });
       });
 
